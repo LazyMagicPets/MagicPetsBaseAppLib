@@ -1,4 +1,6 @@
 ﻿
+using ChatModule;
+
 namespace BaseApp.ViewModels;
 
 public static class ConfigureBaseAppViewModels
@@ -17,7 +19,7 @@ public static class ConfigureBaseAppViewModels
         services.TryAddScoped<IPublicModuleClient>(provider => null!);
         services.TryAddScoped<IConsumerModuleClient>(provider => null!);
         services.TryAddScoped<IStoreModuleClient>(provider => null!);
-        services.TryAddScoped<IAdminModuleClient>(provider => null!);
+        services.TryAddScoped<IChatModuleClient>(provider => null!);    
 
         services.AddLazyMagicClientViewModels();
 

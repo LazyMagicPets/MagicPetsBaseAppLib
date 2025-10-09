@@ -1,0 +1,54 @@
+@namespace BlazorUI
+@inherits LzComponentBasePassViewModel<ChatMessagesViewModel>
+
+@if (ViewModel!.IsLoading)
+{
+    <Busy />
+}
+else
+{
+    <MudPaper Class="pa-4" Style="max-height: 600px; overflow-y: auto;">
+        @if (ViewModel.ViewModels.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No messages yet. Start the conversation!</MudText>
+        }
+        else
+        {
+            @foreach (var messageViewModel in ViewModel.ViewModels.Values.OrderBy(m => m.Data.Timestamp))
+            {
+                var alignmentClass = messageViewModel.IsUserMessage ? "ml-8" : "mr-8";
+                <MudCard Class="@($"mb-3 {alignmentClass}")">
+                    <MudCardContent>
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                            <MudText Typo="Typo.caption" Color="@(messageViewModel.IsUserMessage ? Color.Primary : Color.Secondary)">
+                                @(messageViewModel.IsUserMessage ? "You" : "Assistant")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                @(messageViewModel.Data.Timestamp.ToString("g"))
+                            </MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.body1" Class="mt-2">
+                            @messageViewModel.Data.Content
+                        </MudText>
+                        @if (messageViewModel.IsStreaming)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+        }
+    </MudPaper>
+}
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            // Auto-scroll to bottom could be implemented here with JSInterop if needed
+        }
+    }
+}

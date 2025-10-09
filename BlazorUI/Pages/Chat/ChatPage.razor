@@ -1,0 +1,87 @@
+@namespace BlazorUI
+@page "/ChatPage"
+@attribute [Authorize]
+@inherits LzComponentBaseAssignViewModel<ChatViewModel>
+@inject ISessionViewModel SessionViewModel
+@inject NavigationManager NavigationManager
+
+<MudPaper>
+    <MudContainer>
+        @if (ViewModel == null || ViewModel.Data == null)
+        {
+            <MudText Typo="Typo.h6" Color="Color.Error">No chat selected</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/ChatsPage"))">
+                Back to Chats
+            </MudButton>
+        }
+        else
+        {
+            <MudStack Spacing="3">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h5">@ViewModel.Data.Summary</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/ChatsPage"))">
+                        Back to Chats
+                    </MudButton>
+                </MudStack>
+
+                @if (ViewModel.MessagesViewModel != null)
+                {
+                    <ChatMessageList ViewModel="@ViewModel.MessagesViewModel" />
+                }
+
+                <ChatInput OnSendMessage="@SendMessage" IsDisabled="@isSending" />
+            </MudStack>
+        }
+    </MudContainer>
+</MudPaper>
+
+@code {
+    private bool isSending = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel = SessionViewModel.ChatsViewModel.CurrentViewModel;
+
+        if (ViewModel?.MessagesViewModel != null)
+        {
+            await ViewModel.MessagesViewModel.ReadAsync();
+        }
+
+        // Start polling for new messages
+        ViewModel?.StartPolling();
+
+        await base.OnInitializedAsync();
+    }
+
+    public override void Dispose()
+    {
+        // Stop polling when leaving the page
+        ViewModel?.StopPolling();
+        base.Dispose();
+    }
+
+    private async Task SendMessage(string messageContent)
+    {
+        if (ViewModel == null || string.IsNullOrWhiteSpace(messageContent))
+            return;
+
+        isSending = true;
+        StateHasChanged();
+
+        try
+        {
+            var (success, error) = await ViewModel.SendMessageAsync(messageContent);
+
+            if (!success)
+            {
+                // TODO: Show error message to user
+                Console.WriteLine($"Error sending message: {error}");
+            }
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+}

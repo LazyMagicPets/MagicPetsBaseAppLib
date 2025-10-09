@@ -11,7 +11,8 @@ global using ReactiveUI.Fody;
 global using ReactiveUI.Fody.Helpers;
 
 global using SharedSchema;
-global using AdminModule;
+global using ChatSchema;
+global using ChatModule;
 global using ConsumerModule;
 global using PublicModule;
 global using StoreModule;

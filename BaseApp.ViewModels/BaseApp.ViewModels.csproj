@@ -21,7 +21,7 @@
 		<PackageReference Include="PublicModuleClientInterface" />
 		<PackageReference Include="ConsumerModuleClientInterface" />
 		<PackageReference Include="StoreModuleClientInterface" />
-		<PackageReference Include="AdminModuleClientInterface" />
+		<PackageReference Include="ChatModuleClientInterface" />
 	</ItemGroup>	
 	
 </Project>

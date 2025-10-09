@@ -9,4 +9,5 @@ global using System.Reflection;
 global using Newtonsoft.Json.Linq;
 global using System.Reactive.Linq;
 global using SharedSchema;
+global using ChatSchema;
 

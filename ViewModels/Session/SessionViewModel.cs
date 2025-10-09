@@ -15,15 +15,16 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         [FactoryInject] IPetsViewModelFactory petsViewModelFactory, // transient
         [FactoryInject] ICategoriesViewModelFactory categoriesViewModelFactory, // transient
         [FactoryInject] ITagsViewModelFactory tagsViewModelFactory, // transient
-        [FactoryInject] IAdminApi api // scoped
-        ) : base(loggerFactory, connectivityService, messages, 
-                petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory )
+        [FactoryInject] IChatsViewModelFactory chatsViewModelFactory, // transient
+        [FactoryInject] ITenantApi api // scoped
+        ) : base(loggerFactory, connectivityService, messages,
+                petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory, chatsViewModelFactory )
     {
         try
         {
-            // Note: IAdminApi is resolved when IHostApi is resolved. This makes dynamice binding of the API methods possible
-            // in libraries like the BaseApp.ViewModels. In the app, use the IAdminApi interface to access the AdminApi methods 
-            // to avoid the overhead of the dynamic binding.
+            // Note: ITenantApi is resolved when IHostApi is resolved. This makes dynamice binding of the API methods possible
+            // in libraries like the BaseApp.ViewModels. In the app, use the ITenantApi interface to access methods 
+            // without the overhead of the dynamic binding.
             _api = api ?? throw new ArgumentNullException(nameof(api), "StoreApi cannot be null");
         }
         catch (Exception ex)
@@ -33,7 +34,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         }
     }
 
-    private IAdminApi _api;
+    private ITenantApi _api;
     public override async Task InitAsync()
     {
         try

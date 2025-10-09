@@ -1,0 +1,43 @@
+@namespace BlazorUI
+
+<MudTextField @bind-Value="@messageText"
+              Label="Type a message..."
+              Variant="Variant.Outlined"
+              Lines="3"
+              Disabled="@IsDisabled"
+              OnKeyUp="@HandleKeyPress"
+              Immediate="true" />
+
+<MudButton Variant="Variant.Filled"
+           Color="Color.Primary"
+           OnClick="@SendMessage"
+           Disabled="@(IsDisabled || string.IsNullOrWhiteSpace(messageText))"
+           StartIcon="@Icons.Material.Filled.Send"
+           Class="mt-2">
+    Send
+</MudButton>
+
+@code {
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public bool IsDisabled { get; set; }
+
+    private string messageText = string.Empty;
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(messageText))
+        {
+            var message = messageText;
+            messageText = string.Empty;
+            await OnSendMessage.InvokeAsync(message);
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+}

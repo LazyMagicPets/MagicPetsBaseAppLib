@@ -1,0 +1,77 @@
+@namespace BlazorUI
+@page "/ChatsPage"
+@attribute [Authorize]
+@inherits LzComponentBaseAssignViewModel<ChatsViewModel>
+@inject ISessionViewModel SessionViewModel
+@inject NavigationManager NavigationManager
+
+<MudPaper>
+    <MudContainer>
+        <MudText Typo="Typo.h4" Class="mb-4">My Chats</MudText>
+
+        <ChatsList ViewModel="@ViewModel"
+                   OnNewChat="@CreateNewChat"
+                   OnChatSelected="@SelectChat"
+                   OnDeleteChat="@DeleteChat"
+                   OnChatsReload="@OnChatsReload" />
+
+    </MudContainer>
+</MudPaper>
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        ViewModel = SessionViewModel.ChatsViewModel;
+        await ViewModel!.ReadAsync();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task OnChatsReload()
+    {
+        await ViewModel!.ReadAsync(forceload: true);
+    }
+
+    private async Task CreateNewChat()
+    {
+        var (success, error) = await ViewModel!.CreateNewChatAsync("New Chat");
+
+        if (success && ViewModel.CurrentViewModel != null)
+        {
+            NavigationManager.NavigateTo("/ChatPage");
+        }
+        else
+        {
+            // TODO: Show error message to user
+            Console.WriteLine($"Error creating chat: {error}");
+        }
+    }
+
+    private async Task SelectChat(ChatModel chat)
+    {
+        if (ViewModel!.ViewModels.ContainsKey(chat.Id))
+        {
+            ViewModel.CurrentViewModel = ViewModel.ViewModels[chat.Id];
+            NavigationManager.NavigateTo("/ChatPage");
+        }
+    }
+
+    private async Task DeleteChat(ChatModel chat)
+    {
+        if (ViewModel!.ViewModels.ContainsKey(chat.Id))
+        {
+            var chatViewModel = ViewModel.ViewModels[chat.Id];
+            var (success, error) = await chatViewModel.DeleteAsync();
+
+            if (success)
+            {
+                await ViewModel.ReadAsync(forceload: true);
+            }
+            else
+            {
+                // TODO: Show error message to user
+                Console.WriteLine($"Error deleting chat: {error}");
+            }
+        }
+    }
+}

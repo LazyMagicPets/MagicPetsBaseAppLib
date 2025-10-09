@@ -1,0 +1,79 @@
+@namespace BlazorUI
+@inherits LzComponentBasePassViewModel<ChatsViewModel>
+
+@if (ViewModel!.IsLoading)
+{
+    <Busy />
+}
+else
+{
+    <MudCardHeader>
+        <CardHeaderActions>
+            @if (OnNewChat.HasDelegate)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="NewChat" />
+            }
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (ViewModel.ViewModels.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No chats yet. Create your first chat!</MudText>
+        }
+        else
+        {
+            <MudTable T="ChatModel"
+                      Items="@ViewModel.ViewModels.Values.Select(x => x.Data).OrderByDescending(c => c.UpdateUtcTick)">
+                <HeaderContent>
+                    @if (hasActions)
+                    {
+                        <MudTh>Actions</MudTh>
+                    }
+                    <MudTh>Summary</MudTh>
+                    <MudTh>Created</MudTh>
+                    <MudTh>Updated</MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    @if (hasActions)
+                    {
+                        <MudTd>
+                            @if (OnChatSelected.HasDelegate)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Chat" Color="Color.Primary" OnClick="@(() => SelectChat(context))" />
+                            }
+                            @if (OnDeleteChat.HasDelegate)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteChat(context))" />
+                            }
+                        </MudTd>
+                    }
+                    <MudTd DataLabel="Summary">@context.Summary</MudTd>
+                    <MudTd DataLabel="Created">@context.CreatedAt.ToString("g")</MudTd>
+                    <MudTd DataLabel="Updated">@context.LastActivityAt.ToString("g")</MudTd>
+                </RowTemplate>
+
+            </MudTable>
+        }
+    </MudCardContent>
+    <MudCardActions>
+        @if (OnChatsReload.HasDelegate)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ChatsReloadAsync">Reload Chats</MudButton>
+        }
+    </MudCardActions>
+}
+
+@code {
+    [Parameter] public EventCallback OnNewChat { get; set; }
+    [Parameter] public EventCallback<ChatModel> OnChatSelected { get; set; }
+    [Parameter] public EventCallback<ChatModel> OnDeleteChat { get; set; }
+    [Parameter] public EventCallback OnChatsReload { get; set; }
+
+    private bool hasActions => OnChatSelected.HasDelegate || OnDeleteChat.HasDelegate;
+
+    private void NewChat() => OnNewChat.InvokeAsync();
+    private void SelectChat(ChatModel chat) => OnChatSelected.InvokeAsync(chat);
+    private void DeleteChat(ChatModel chat) => OnDeleteChat.InvokeAsync(chat);
+    private void ChatsReloadAsync() => OnChatsReload.InvokeAsync();
+}
