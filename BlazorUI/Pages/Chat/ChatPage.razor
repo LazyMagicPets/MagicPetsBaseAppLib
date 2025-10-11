@@ -47,17 +47,13 @@
             await ViewModel.MessagesViewModel.ReadAsync();
         }
 
-        // Start polling for new messages
-        ViewModel?.StartPolling();
+        // Initialize event subscriptions for this chat
+        if (ViewModel != null)
+        {
+            await ViewModel.InitializeEventsAsync();
+        }
 
         await base.OnInitializedAsync();
-    }
-
-    public override void Dispose()
-    {
-        // Stop polling when leaving the page
-        ViewModel?.StopPolling();
-        base.Dispose();
     }
 
     private async Task SendMessage(string messageContent)

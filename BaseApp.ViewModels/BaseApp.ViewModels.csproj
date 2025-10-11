@@ -9,11 +9,12 @@
 	<ItemGroup>
 		<PackageReference Include="ReactiveUI.Fody" />
 		<PackageReference Include="ReactiveUI" />
-		
+
 		<PackageReference Include="LazyMagic.Client.FactoryGenerator" />
 		<PackageReference Include="LazyMagic.Client.ModelGenerator" />
 		<PackageReference Include="LazyMagic.Client.ViewModels" />
 		<PackageReference Include="LazyMagic.Shared" />
+		<PackageReference Include="LazyMagic.OIDC.Base" />
 		<!--<PackageReference Include="TenantApi" />-->
 	</ItemGroup>
 

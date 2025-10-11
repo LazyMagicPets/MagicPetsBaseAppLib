@@ -12,6 +12,8 @@ public static class ConfigureBaseAppViewModels
 
         services.TryAddSingleton<ILzMessages, LzMessages>();
         services.TryAddSingleton<ILzClientConfig, LzClientConfig>();
+        services.TryAddSingleton<IAppSyncEventsWebSocketClient, AppSyncEventsWebSocketClient>();
+        services.TryAddSingleton<IChatEventsService, ChatEventsService>();
 
         // Use of the various module clients is optional so we register them as singletons with null values.
         // Note we are using TryAdd so any existing registrations will not be overridden. It is expected that 

@@ -18,12 +18,12 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         [FactoryInject] IChatsViewModelFactory chatsViewModelFactory, // transient
         [FactoryInject] ITenantApi api // scoped
         ) : base(loggerFactory, connectivityService, messages,
-                petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory, chatsViewModelFactory )
+                petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory, chatsViewModelFactory)
     {
         try
         {
             // Note: ITenantApi is resolved when IHostApi is resolved. This makes dynamice binding of the API methods possible
-            // in libraries like the BaseApp.ViewModels. In the app, use the ITenantApi interface to access methods 
+            // in libraries like the BaseApp.ViewModels. In the app, use the ITenantApi interface to access methods
             // without the overhead of the dynamic binding.
             _api = api ?? throw new ArgumentNullException(nameof(api), "StoreApi cannot be null");
         }
@@ -35,10 +35,13 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
     }
 
     private ITenantApi _api;
+
     public override async Task InitAsync()
     {
         try
         {
+            // Chat events are now automatically initialized by ChatsViewModel
+
             //var fingerPrint = JsonConvert.SerializeObject(sessionsViewModel!.BrowserFingerprint);
 
             //PublicSchema.Fingerprint newFingerprint = JsonConvert.DeserializeObject<PublicSchema.Fingerprint>(fingerPrint) ?? new PublicSchema.Fingerprint();

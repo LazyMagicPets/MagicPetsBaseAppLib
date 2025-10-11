@@ -1,20 +1,25 @@
 namespace BaseApp.ViewModels;
 
 using LazyMagic.Client.FactoryGenerator;
+using System.Reactive.Linq;
 
 [Factory]
 public class ChatsViewModel : LzItemsViewModel<ChatViewModel, Chat, ChatModel>
 {
     private readonly IChatModuleClient? _chatApi;
+    private readonly IChatEventsService? _chatEventsService;
+    private IDisposable? _chatEventsSubscription;
 
     public ChatsViewModel(
         [FactoryInject] ILoggerFactory loggerFactory,
         [FactoryInject] IChatModuleClient? chatApi,
-        [FactoryInject] IChatViewModelFactory chatViewModelFactory
+        [FactoryInject] IChatViewModelFactory chatViewModelFactory,
+        [FactoryInject] IChatEventsService? chatEventsService
         ) : base(loggerFactory)
     {
         ChatViewModelFactory = chatViewModelFactory;
         _chatApi = chatApi;
+        _chatEventsService = chatEventsService;
 
         if (chatApi != null)
         {
@@ -23,6 +28,42 @@ public class ChatsViewModel : LzItemsViewModel<ChatViewModel, Chat, ChatModel>
                 var result = await chatApi.ChatModuleListChatsAsync();
                 return result?.ToList() ?? new List<Chat>();
             };
+        }
+
+    }
+
+    private async Task InitializeChatEventsAsync()
+    {
+        if (_chatEventsService == null)
+            return;
+
+        if (_chatEventsService.IsInitialized)
+            return;
+
+        try
+        {
+            var initialized = await _chatEventsService.InitializeAsync();
+
+            if (initialized)
+            {
+                // Subscribe to chat events and route them to the appropriate ChatViewModel
+                _chatEventsSubscription = _chatEventsService.ChatEvents
+                    .Subscribe(eventArgs =>
+                    {
+                        if (ViewModels.TryGetValue(eventArgs.ChatId, out var chatViewModel))
+                        {
+                            // Let the ChatViewModel handle its own events via its observable
+                            _logger.LogDebug("Routing event {EventType} to ChatViewModel {ChatId}",
+                                eventArgs.EventType, eventArgs.ChatId);
+                        }
+                    });
+
+                _logger.LogInformation("ChatsViewModel: Chat events service initialized");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize chat events service");
         }
     }
 
@@ -76,5 +117,11 @@ public class ChatsViewModel : LzItemsViewModel<ChatViewModel, Chat, ChatModel>
         {
             return (false, ex.Message);
         }
+    }
+
+    public override void Dispose()
+    {
+        _chatEventsSubscription?.Dispose();
+        base.Dispose();
     }
 }
