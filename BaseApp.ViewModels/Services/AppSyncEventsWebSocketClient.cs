@@ -24,6 +24,7 @@ public class ChatEventReceivedEventArgs : EventArgs
     public string EventType { get; set; } = string.Empty;
     public DateTimeOffset Timestamp { get; set; }
     public object? Data { get; set; }
+    public string? DataType { get; set; }
 }
 
 public class AppSyncEventsWebSocketClient : IAppSyncEventsWebSocketClient
@@ -368,6 +369,7 @@ public class AppSyncEventsWebSocketClient : IAppSyncEventsWebSocketClient
             var chatId = eventData.TryGetProperty("chatId", out var chatIdProp) ? chatIdProp.GetString() ?? string.Empty : string.Empty;
             var eventType = eventData.TryGetProperty("eventType", out var eventTypeProp) ? eventTypeProp.GetString() ?? string.Empty : string.Empty;
             var timestamp = eventData.TryGetProperty("timestamp", out var timestampProp) ? timestampProp.GetDateTimeOffset() : DateTimeOffset.UtcNow;
+            var dataType = eventData.TryGetProperty("dataType", out var dataTypeProp) ? dataTypeProp.GetString() : null;
             object? data = eventData.TryGetProperty("data", out var dataProp) ? JsonSerializer.Deserialize<object>(dataProp.GetRawText()) : null;
 
             var eventArgs = new ChatEventReceivedEventArgs
@@ -376,10 +378,12 @@ public class AppSyncEventsWebSocketClient : IAppSyncEventsWebSocketClient
                 ChatId = chatId,
                 EventType = eventType,
                 Timestamp = timestamp,
-                Data = data
+                Data = data,
+                DataType = dataType
             };
 
-            _logger.LogInformation("Received chat event: {EventType} for chat: {ChatId}", eventType, chatId);
+            _logger.LogInformation("Received chat event: {EventType} (DataType: {DataType}) for chat: {ChatId}",
+                eventType, dataType ?? "null", chatId);
 
             _eventReceivedSubject.OnNext(eventArgs);
         }
