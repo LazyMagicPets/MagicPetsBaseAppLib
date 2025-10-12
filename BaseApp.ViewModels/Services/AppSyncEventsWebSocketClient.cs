@@ -370,7 +370,8 @@ public class AppSyncEventsWebSocketClient : IAppSyncEventsWebSocketClient
             var eventType = eventData.TryGetProperty("eventType", out var eventTypeProp) ? eventTypeProp.GetString() ?? string.Empty : string.Empty;
             var timestamp = eventData.TryGetProperty("timestamp", out var timestampProp) ? timestampProp.GetDateTimeOffset() : DateTimeOffset.UtcNow;
             var dataType = eventData.TryGetProperty("dataType", out var dataTypeProp) ? dataTypeProp.GetString() : null;
-            object? data = eventData.TryGetProperty("data", out var dataProp) ? JsonSerializer.Deserialize<object>(dataProp.GetRawText()) : null;
+            // Pass data as JsonElement so handlers can extract properties using TryGetProperty
+            object? data = eventData.TryGetProperty("data", out var dataProp) ? (object?)dataProp : null;
 
             var eventArgs = new ChatEventReceivedEventArgs
             {
