@@ -47,11 +47,8 @@
             await ViewModel.MessagesViewModel.ReadAsync();
         }
 
-        // Initialize event subscriptions for this chat
-        if (ViewModel != null)
-        {
-            await ViewModel.InitializeEventsAsync();
-        }
+        // Event subscriptions are now handled automatically by ChatMessagesViewModel
+        // when ChatId is set (see ChatMessagesViewModel.ChatId setter)
 
         await base.OnInitializedAsync();
     }
