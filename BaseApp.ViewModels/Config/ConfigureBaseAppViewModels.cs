@@ -10,12 +10,12 @@ public static class ConfigureBaseAppViewModels
         //var assembly = typeof(ConfigureBaseAppViewModels).Assembly; // Uncomment if you need to use the assembly for something
         BaseAppViewModelsRegisterFactories.BaseAppViewModelsRegister(services); // Run generated registration code
 
-        services.TryAddSingleton<ILzMessages, LzMessages>();
-        services.TryAddSingleton<ILzClientConfig, LzClientConfig>();
-        services.TryAddSingleton<IAppSyncEventsWebSocketClient, AppSyncEventsWebSocketClient>();
-        services.TryAddSingleton<IChatEventsService, ChatEventsService>();
+        services.TryAddScoped<ILzMessages, LzMessages>();
+        services.TryAddScoped<ILzClientConfig, LzClientConfig>();
+        services.TryAddScoped<IAppSyncEventsWebSocketClient, AppSyncEventsWebSocketClient>();
+        services.TryAddScoped<IChatEventsService, ChatEventsService>();
 
-        // Use of the various module clients is optional so we register them as singletons with null values.
+        // Use of the various module clients is optional so we register them with null values.
         // Note we are using TryAdd so any existing registrations will not be overridden. It is expected that 
         // the application will register its own implementations of these interfaces if needed.
         services.TryAddScoped<IPublicModuleClient>(provider => null!);

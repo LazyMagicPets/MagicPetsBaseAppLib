@@ -40,13 +40,13 @@ public static class MauiProgram
 
         // Here, we only register classes that require specific MAUI configuration.
         // The call to AddBlazorUI() will register all the other classes that are not MAUI specific.
-        builder.Services.AddSingleton(sp => new HttpClient());
+        builder.Services.TryAddScoped(sp => new HttpClient());
 
-        builder.Services.AddSingleton<IStaticAssets>(sp => new BlazorStaticAssets(
+        builder.Services.TryAddScoped<IStaticAssets>(sp => new BlazorStaticAssets(
             sp.GetRequiredService<ILoggerFactory>(),
             new HttpClient { BaseAddress = new Uri((string)_appConfig!["assetsUrl"]!) }));
 
-        builder.Services.AddSingleton<ILzHost>(sp => new LzHost(
+        builder.Services.TryAddScoped<ILzHost>(sp => new LzHost(
             appPath: (string)_appConfig!["appPath"]!, // app path
             appUrl: (string)_appConfig!["appUrl"]!, // app url  
             androidAppUrl: (string)_appConfig!["androidAppUrl"]!, // android app url 

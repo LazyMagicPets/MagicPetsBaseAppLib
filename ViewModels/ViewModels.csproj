@@ -19,6 +19,6 @@
 
 	<ItemGroup>
 
-		<PackageReference Include="TenantApi" />
+		<PackageReference Include="StoreApi" />
 	</ItemGroup>
 </Project>

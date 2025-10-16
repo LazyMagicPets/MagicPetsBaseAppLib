@@ -11,4 +11,4 @@ global using ConsumerModule;
 global using PublicModule;
 global using StoreModule;
 global using ChatModule;
-global using TenantApi;
+global using StoreApi;

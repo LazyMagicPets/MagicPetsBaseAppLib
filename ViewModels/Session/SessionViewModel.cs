@@ -16,7 +16,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         [FactoryInject] ICategoriesViewModelFactory categoriesViewModelFactory, // transient
         [FactoryInject] ITagsViewModelFactory tagsViewModelFactory, // transient
         [FactoryInject] IChatsViewModelFactory chatsViewModelFactory, // transient
-        [FactoryInject] ITenantApi api // scoped
+        [FactoryInject] IStoreApi api // scoped
         ) : base(loggerFactory, connectivityService, messages,
                 petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory, chatsViewModelFactory)
     {
@@ -34,7 +34,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         }
     }
 
-    private ITenantApi _api;
+    private IStoreApi _api;
 
     public override async Task InitAsync()
     {
