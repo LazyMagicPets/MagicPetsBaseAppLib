@@ -19,6 +19,6 @@
 
 	<ItemGroup>
 
-		<PackageReference Include="StoreApi" />
+		<PackageReference Include="AppApi" />
 	</ItemGroup>
 </Project>

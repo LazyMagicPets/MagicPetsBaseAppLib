@@ -10,7 +10,7 @@ public class PetViewModel : LzItemViewModel<Pet, PetModel>
     public PetViewModel(
         [FactoryInject] ILoggerFactory loggerFactory,
         [FactoryInject] IPublicModuleClient publicApi,
-        [FactoryInject] IStoreModuleClient? storeApi,
+        [FactoryInject] IStoreModuleClient? AppApi,
         ILzParentViewModel parentViewModel,
         Pet pet,
         bool? isLoaded = null
@@ -20,11 +20,11 @@ public class PetViewModel : LzItemViewModel<Pet, PetModel>
         if(publicApi != null)
             _DTOReadAsync = publicApi.PublicModuleGetPetByIdAsync;
 
-        if(storeApi != null)
+        if(AppApi != null)
         {
-            _DTOCreateAsync = storeApi.StoreModuleAddPetAsync;
-            _DTOUpdateAsync = storeApi.StoreModuleUpdatePetAsync;
-            _DTODeleteAsync = storeApi.StoreModuleDeletePetAsync;
+            _DTOCreateAsync = AppApi.StoreModuleAddPetAsync;
+            _DTOUpdateAsync = AppApi.StoreModuleUpdatePetAsync;
+            _DTODeleteAsync = AppApi.StoreModuleDeletePetAsync;
         }
     }
     public override string Id => Data?.Id ?? string.Empty;

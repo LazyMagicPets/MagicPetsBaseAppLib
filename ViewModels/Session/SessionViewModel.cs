@@ -16,7 +16,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         [FactoryInject] ICategoriesViewModelFactory categoriesViewModelFactory, // transient
         [FactoryInject] ITagsViewModelFactory tagsViewModelFactory, // transient
         [FactoryInject] IChatsViewModelFactory chatsViewModelFactory, // transient
-        [FactoryInject] IStoreApi api // scoped
+        [FactoryInject] IAppApi api // scoped
         ) : base(loggerFactory, connectivityService, messages,
                 petsViewModelFactory, categoriesViewModelFactory, tagsViewModelFactory, chatsViewModelFactory)
     {
@@ -25,7 +25,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
             // Note: ITenantApi is resolved when IHostApi is resolved. This makes dynamice binding of the API methods possible
             // in libraries like the BaseApp.ViewModels. In the app, use the ITenantApi interface to access methods
             // without the overhead of the dynamic binding.
-            _api = api ?? throw new ArgumentNullException(nameof(api), "StoreApi cannot be null");
+            _api = api ?? throw new ArgumentNullException(nameof(api), "AppApi cannot be null");
         }
         catch (Exception ex)
         {
@@ -34,7 +34,7 @@ public class SessionViewModel : BaseAppSessionViewModel, ISessionViewModel
         }
     }
 
-    private IStoreApi _api;
+    private IAppApi _api;
 
     public override async Task InitAsync()
     {

@@ -1,11 +1,13 @@
 export const settings = {
   staticAssets: [
-    { "/system/base/System/": "PreCache" },
-    { "/system/en-US/System/": "PreCache" },
-    { "/system/es-MX/System/": "LazyCache" },
+    // System (shared across all subtenants)
+    { path: "/system/base/System/", cacheType: "PreCache", shared: true },
+    { path: "/system/en-US/System/", cacheType: "PreCache", shared: true },
+    { path: "/system/es-MX/System/", cacheType: "LazyCache", shared: true },
 
-    { "/system/base/BaseApp/": "PreCache" },
-    { "/system/en-US/BaseApp/": "PreCache" },
-    { "/system/es-MX/BaseApp/": "LazyCache" }
+    // BaseApp (shared across all subtenants)
+    { path: "/system/base/BaseApp/", cacheType: "PreCache", shared: true },
+    { path: "/system/en-US/BaseApp/", cacheType: "PreCache", shared: true },
+    { path: "/system/es-MX/BaseApp/", cacheType: "LazyCache", shared: true }
   ]
 }

@@ -41,6 +41,6 @@
 		<PackageVersion Include="StoreModuleClientInterface" Version="1.0.0" />
 		<PackageVersion Include="AdminModuleClientInterface" Version="1.0.0" />
 		<PackageVersion Include="ChatModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="StoreApi" Version="1.0.0" />
+		<PackageVersion Include="AppApi" Version="1.0.0" />
 	</ItemGroup>
 </Project>

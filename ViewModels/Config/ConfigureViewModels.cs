@@ -1,5 +1,5 @@
 ﻿using LazyMagic.Shared;
-using StoreApi;
+using AppApi;
 
 namespace ViewModels;
 
@@ -12,7 +12,7 @@ public static class ConfigureViewModels
 
 
         // Register the ClientSDK 
-        services.AddScoped<IStoreApi> (serviceProvider =>
+        services.AddScoped<IAppApi> (serviceProvider =>
         {
             var lzHost = serviceProvider.GetRequiredService<ILzHost>();
             var authenticationHandler = serviceProvider.GetRequiredService<IAuthenticationHandler>();
@@ -21,15 +21,16 @@ public static class ConfigureViewModels
             {
                 BaseAddress = new Uri(lzHost.GetApiUrl("")) // LocalApiUrl or RemoteApiUrl depending on UseLocalhostApi property
             };
-            var api = new StoreApi.StoreApi(httpClient);
+            httpClient.DefaultRequestHeaders.Add("lz-authname", lzHost.AuthConfigName);
+            var api = new AppApi.AppApi(httpClient);
             return api;
         });
 
         // Register the modules used from the Client SDK.
-        services.AddScoped<IPublicModuleClient>(provider => provider.GetRequiredService<IStoreApi>());
-        services.AddScoped<IConsumerModuleClient>(provider => provider.GetRequiredService<IStoreApi>());
-        services.AddScoped<IStoreModuleClient>(provider => provider.GetRequiredService<IStoreApi>());
-        services.AddScoped<IChatModuleClient>(provider => provider.GetRequiredService<IStoreApi>());
+        services.AddScoped<IPublicModuleClient>(provider => provider.GetRequiredService<IAppApi>());
+        services.AddScoped<IConsumerModuleClient>(provider => provider.GetRequiredService<IAppApi>());
+        services.AddScoped<IStoreModuleClient>(provider => provider.GetRequiredService<IAppApi>());
+        services.AddScoped<IChatModuleClient>(provider => provider.GetRequiredService<IAppApi>());
 
         services.AddScoped<ISessionViewModel, SessionViewModel>();
         services.AddTransient<IBaseAppSessionViewModel>(sp => sp.GetRequiredService<ISessionViewModel>());
