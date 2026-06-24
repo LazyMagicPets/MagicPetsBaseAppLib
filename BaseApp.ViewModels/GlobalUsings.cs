@@ -7,8 +7,7 @@ global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Logging;
 
 global using ReactiveUI;
-global using ReactiveUI.Fody;
-global using ReactiveUI.Fody.Helpers;
+global using ReactiveUI.SourceGenerators;
 
 global using SharedSchema;
 global using ChatSchema;

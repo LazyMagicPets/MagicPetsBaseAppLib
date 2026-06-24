@@ -101,9 +101,10 @@ public class ChatMessagesViewModel : LzItemsViewModel<ChatMessageViewModel, Chat
             if (_subscriptionId != null)
             {
                 // Subscribe to events for this specific chat using ReactiveUI
+                // WASM is single-threaded; the handler runs on the UI thread without an
+                // explicit ObserveOn (RxApp.MainThreadScheduler was removed in ReactiveUI 23).
                 _eventSubscription = _chatEventsService.ChatEvents
                     .Where(e => e.ChatId == ChatId)
-                    .ObserveOn(RxApp.MainThreadScheduler)
                     .Subscribe(async eventArgs =>
                     {
                         await HandleChatEventAsync(eventArgs);

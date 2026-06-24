@@ -7,7 +7,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ReactiveUI.Fody" />
+		<PackageReference Include="ReactiveUI.SourceGenerators" PrivateAssets="all" />
 		<PackageReference Include="ReactiveUI" />
 
 		<PackageReference Include="LazyMagic.Client.FactoryGenerator" />

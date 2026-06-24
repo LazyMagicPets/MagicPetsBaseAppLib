@@ -7,7 +7,7 @@
     <MudSelect T="string"  
     Label="Tags"  
     MultiSelection="true"
-    SelectedValues="@SelectedValues" 
+    SelectedValues="@(SelectedValues?.ToList())"
     SelectedValuesChanged="@ValueChangedHandler"
     Dense="true"
     Margin="Margin.Dense">
@@ -36,7 +36,7 @@
         await base.OnInitializedAsync();
     }
 
-    private async void ValueChangedHandler(IEnumerable<string> selectedValues )
+    private async void ValueChangedHandler(IReadOnlyCollection<string> selectedValues )
     {
         SelectedValues = selectedValues.Where(value => !string.IsNullOrEmpty(value)).ToList();
         await SelectedValuesChanged.InvokeAsync(SelectedValues);
