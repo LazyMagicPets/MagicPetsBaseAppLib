@@ -39,7 +39,7 @@
 		<RepositoryUrl>https://github.com/Banquet-Consulting/BaseAppLib.git</RepositoryUrl>
 		<RepositoryType>GitHub</RepositoryType>
 		<Authors>Tim May</Authors>
-		<Version>1.0.0</Version>
+		<Version>1.0.1</Version>
 	</PropertyGroup>
 
 	<PropertyGroup>

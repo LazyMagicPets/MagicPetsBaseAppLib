@@ -1,4 +1,5 @@
 @namespace BlazorUI
+@implements IDisposable
 @inject NavigationManager Navigation
 @inject IOIDCService AuthService
 @inject IRememberMeService RememberMe
@@ -114,19 +115,19 @@ else
     {
         try
         {
-            // Show checking state and allow user interaction
-            isCheckingAuthState = true;
-            StateHasChanged();
-
-            // Check initial authentication state (this may take 10+ seconds)
-            // await UpdateAuthenticationState();
-
-            // Hide checking state
-            isCheckingAuthState = false;
-            StateHasChanged();
-
-            // Subscribe to authentication changes
+            // Subscribe BEFORE the initial check so a state change landing between the
+            // check and the subscription is not lost.
             AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+            // Sync auth state established before this component initialized — e.g. the MAUI
+            // boot-time session restore fires AuthenticationStateChanged ~1-2s after process
+            // start, often before any component has subscribed, which left the bar on "Login"
+            // while the app was authenticated. Cheap in every mode (MAUI: in-memory state;
+            // BFF: one same-origin /bff/user fetch). Blazor paints at the first await, so a
+            // slow provider (SPA-OIDC first check) delays only the flip, not the first render.
+            isCheckingAuthState = true;
+            await UpdateAuthenticationState();
+            isCheckingAuthState = false;
 
             // Initialize Remember Me state - set default to false for now
             rememberMeEnabled = false;

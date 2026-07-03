@@ -1,96 +1,121 @@
 @namespace BlazorUI
 @page "/authentication/{action}"
 @using Microsoft.Extensions.Logging
-@using Microsoft.Extensions.Options
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @inject ILogger<Authentication> Logger
 @inject NavigationManager Navigation
-@inject IOptionsSnapshot<RemoteAuthenticationOptions<OidcProviderOptions>> Options
+@inject IServiceProvider Services
+@inject IOIDCService Oidc
 
-<RemoteAuthenticatorView Action="@Action" OnLogInSucceeded="@OnLogInSucceeded" OnLogOutSucceeded="@OnLogOutSucceeded">
-    <LogInFailed>
-        <div class="alert alert-danger" role="alert">
-            <h4>Login Failed</h4>
-            <p>There was an error trying to log you in.</p>
-            <p>@context</p>
-            <p><a href="/">Return to Home</a></p>
-        </div>
-    </LogInFailed>
-    <LogOutFailed>
-        <div class="alert alert-danger" role="alert">
-            <h4>Logout Failed</h4>
-            <p>There was an error trying to log you out.</p>
-            <p>@context</p>
-            <p><a href="/">Return to Home</a></p>
-        </div>
-    </LogOutFailed>
-    <CompletingLoggingIn>
-        <p>Completing login...</p>
-    </CompletingLoggingIn>
-    <CompletingLogOut>
-        <p>Completing logout...</p>
-    </CompletingLogOut>
-</RemoteAuthenticatorView>
+@* This shared /authentication/{action} route must work in BOTH auth modes:
+     - SPA-OIDC: AddOidcAuthentication registers IRemoteAuthenticationService, so we render the
+       standard RemoteAuthenticatorView (handles login / callback / logout client-side).
+     - BFF (employee-gated apps): AddLazyMagicOIDCWASMBff does NOT register that service, so
+       RemoteAuthenticatorView throws ("no registered service of type IRemoteAuthenticationService").
+       CFRequest's auth gate can route gated deep-links here, so in BFF mode we hand login/logout
+       off to the server-side /bff endpoints via IOIDCService instead.
+   BFF mode is detected by the ABSENCE of the SPA RemoteAuthenticationService — the exact service
+   whose absence makes RemoteAuthenticatorView fail. *@
+
+@if (_isBff)
+{
+    <p>Redirecting…</p>
+}
+else
+{
+    <RemoteAuthenticatorView Action="@Action" OnLogInSucceeded="@OnLogInSucceeded" OnLogOutSucceeded="@OnLogOutSucceeded">
+        <LogInFailed>
+            <div class="alert alert-danger" role="alert">
+                <h4>Login Failed</h4>
+                <p>There was an error trying to log you in.</p>
+                <p>@context</p>
+                <p><a href="/">Return to Home</a></p>
+            </div>
+        </LogInFailed>
+        <LogOutFailed>
+            <div class="alert alert-danger" role="alert">
+                <h4>Logout Failed</h4>
+                <p>There was an error trying to log you out.</p>
+                <p>@context</p>
+                <p><a href="/">Return to Home</a></p>
+            </div>
+        </LogOutFailed>
+        <CompletingLoggingIn>
+            <p>Completing login...</p>
+        </CompletingLoggingIn>
+        <CompletingLogOut>
+            <p>Completing logout...</p>
+        </CompletingLogOut>
+    </RemoteAuthenticatorView>
+}
 
 @code {
     [Parameter] public string? Action { get; set; }
-    
+
+    private bool _isBff;
+    private bool _handled;
+
     protected override void OnInitialized()
     {
-        Logger.LogInformation("=== Authentication Page Initialized ===");
-        Logger.LogInformation("Action: {Action}", Action);
-        Logger.LogInformation("Current URI: {Uri}", Navigation.Uri);
-        Logger.LogInformation("Base URI: {BaseUri}", Navigation.BaseUri);
-        
+        // BFF mode == the SPA-OIDC RemoteAuthenticationService is not registered. GetService (not
+        // GetRequiredService) returns null in BFF mode and the service instance in SPA mode.
+        _isBff = Services.GetService<IRemoteAuthenticationService<RemoteAuthenticationState>>() is null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_isBff || _handled) return;
+        _handled = true;
+
+        var action = (Action ?? "login").ToLowerInvariant();
         try
         {
-            var oidcOptions = Options.Value;
-            Logger.LogInformation("OIDC Configuration:");
-            Logger.LogInformation("  Authority: {Authority}", oidcOptions.ProviderOptions.Authority);
-            Logger.LogInformation("  ClientId: {ClientId}", oidcOptions.ProviderOptions.ClientId);
-            Logger.LogInformation("  RedirectUri: {RedirectUri}", oidcOptions.ProviderOptions.RedirectUri);
-            Logger.LogInformation("  PostLogoutRedirectUri: {PostLogoutRedirectUri}", oidcOptions.ProviderOptions.PostLogoutRedirectUri);
-            Logger.LogInformation("  ResponseType: {ResponseType}", oidcOptions.ProviderOptions.ResponseType);
-            Logger.LogInformation("  MetadataUrl: {MetadataUrl}", oidcOptions.ProviderOptions.MetadataUrl);
-            
-            if (Action == "login")
+            if (action is "logout" or "logout-callback")
             {
-                // Log the authorization endpoint that will be used
-                var authEndpoint = BuildAuthorizationUrl(oidcOptions.ProviderOptions);
-                Logger.LogInformation("Expected Authorization URL (approx): {AuthUrl}", authEndpoint);
+                await Oidc.LogoutAsync(); // full-page navigation to /bff/logout
+                return;
+            }
+
+            // login (or any non-logout action): if we just returned from /bff/login the BFF session
+            // cookie now exists, so go to the intended returnUrl; otherwise initiate the BFF login.
+            if (await Oidc.IsAuthenticatedAsync())
+            {
+                Navigation.NavigateTo(GetReturnUrlFromQuery() ?? "/");
+            }
+            else
+            {
+                await Oidc.LoginAsync(); // full-page navigation to /bff/login?returnUrl=<current page>
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error logging OIDC configuration");
+            Logger.LogError(ex, "BFF auth handoff failed for action {Action}", action);
+            Navigation.NavigateTo("/");
         }
     }
-    
+
     private void OnLogInSucceeded(RemoteAuthenticationState state)
-    {
-        Logger.LogInformation("=== Login Succeeded ===");
-        Logger.LogInformation("ReturnUrl: {ReturnUrl}", state?.ReturnUrl);
-    }
-    
+        => Logger.LogInformation("Login succeeded; returnUrl={ReturnUrl}", state?.ReturnUrl);
+
     private void OnLogOutSucceeded(RemoteAuthenticationState state)
+        => Logger.LogInformation("Logout succeeded; returnUrl={ReturnUrl}", state?.ReturnUrl);
+
+    // Extract a relative returnUrl from the current URL's query — the auth gate sends users to
+    // /app/authentication/login?returnUrl=%2Fapp%2F... Relative-only (single leading '/') to avoid
+    // an open-redirect to another origin.
+    private string? GetReturnUrlFromQuery()
     {
-        Logger.LogInformation("=== Logout Succeeded ===");
-        Logger.LogInformation("ReturnUrl: {ReturnUrl}", state?.ReturnUrl);
-    }
-    
-    private string BuildAuthorizationUrl(OidcProviderOptions options)
-    {
-        // This is an approximation of what the URL will look like
-        var baseUrl = options.Authority?.TrimEnd('/');
-        if (baseUrl?.Contains("amazoncognito.com") == true)
+        var query = new Uri(Navigation.Uri).Query;
+        if (string.IsNullOrEmpty(query)) return null;
+        foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
-            // For Cognito, use the /oauth2/authorize endpoint
-            return $"{baseUrl}/oauth2/authorize?client_id={options.ClientId}&redirect_uri={options.RedirectUri}&response_type={options.ResponseType}&scope=openid+profile+email";
+            var eq = pair.IndexOf('=');
+            if (eq <= 0) continue;
+            if (!string.Equals(pair.Substring(0, eq), "returnUrl", StringComparison.OrdinalIgnoreCase)) continue;
+            var value = Uri.UnescapeDataString(pair.Substring(eq + 1));
+            return value.StartsWith("/") && !value.StartsWith("//") ? value : null;
         }
-        else
-        {
-            // For other providers, use the standard /authorize endpoint
-            return $"{baseUrl}/authorize?client_id={options.ClientId}&redirect_uri={options.RedirectUri}&response_type={options.ResponseType}";
-        }
+        return null;
     }
 }

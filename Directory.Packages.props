@@ -24,14 +24,14 @@
 	</ItemGroup>
 	<ItemGroup>
 		<!-- LazyMagic Package References -->
-		<PackageVersion Include="LazyMagic.Client.FactoryGenerator" Version="3.0.10"/>
-		<PackageVersion Include="LazyMagic.Client.ModelGenerator" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.MudBlazor" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.Client.ViewModels" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.OIDC.Base" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.OIDC.WASM" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.OIDC.MAUI" Version="3.0.10" />
-		<PackageVersion Include="LazyMagic.Shared" Version="3.0.10" />
+		<PackageVersion Include="LazyMagic.Client.FactoryGenerator" Version="3.0.17"/>
+		<PackageVersion Include="LazyMagic.Client.ModelGenerator" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.MudBlazor" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.Client.ViewModels" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.OIDC.Base" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.OIDC.WASM" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.OIDC.MAUI" Version="3.0.17" />
+		<PackageVersion Include="LazyMagic.Shared" Version="3.0.17" />
 	</ItemGroup>
 	<!-- MagicPetsSvc API Package Reference -->
 	<ItemGroup>
