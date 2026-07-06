@@ -35,7 +35,7 @@
 		<!-- Identity -->
 		<Copyright>Copyright (c) 2021 - 2026 Insight Sciences Corporation. All rights reserved.</Copyright>
 		<Company>Insight Sciences Corporation</Company>
-		<RepositoryUrl>https://github.com/LazyMagicPets/BaseAppLib.git</RepositoryUrl>
+		<RepositoryUrl>https://github.com/LazyMagicPets/MagicPetsBaseAppLib.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<Authors>Tim May</Authors>
 		<Version>1.0.1</Version>
