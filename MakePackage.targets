@@ -56,7 +56,18 @@
 
 	<Target Name="DeleteSpecificPackage">
 		<PropertyGroup>
-			<PackageCacheFolder>$(NuGetPackageRoot)$(AssemblyName)\$(Version)</PackageCacheFolder>
+			<!-- Evict from the global-packages folder the restore ACTUALLY used. $(NuGetPackageRoot) comes from
+			     the restore-generated nuget.g.props and follows a per-workspace globalPackagesFolder set in the
+			     workspace NuGet.Config. NuGet writes a RELOCATED root WITHOUT a trailing separator (the default
+			     ~\.nuget\packages\ has one), so the separator must be ensured or the path collapses to
+			     "...\.nuget-packagesBaseApp.ViewModels\1.0.1" and eviction silently no-ops (seen 2026-09-02).
+			     NuGet lowercases package ids on disk. -->
+			<_PackageRoot>$(NuGetPackageRoot)</_PackageRoot>
+			<_PackageRoot Condition=" '$(_PackageRoot)' == '' AND '$(OS)' == 'Windows_NT' ">$(UserProfile)\.nuget\packages\</_PackageRoot>
+			<_PackageRoot Condition=" '$(_PackageRoot)' == '' AND '$(OS)' != 'Windows_NT' ">$(Home)/.nuget/packages/</_PackageRoot>
+			<_PackageRoot>$([MSBuild]::EnsureTrailingSlash('$(_PackageRoot)'))</_PackageRoot>
+			<PackageCacheFolder Condition=" '$(OS)' == 'Windows_NT' ">$(_PackageRoot)$(AssemblyName.ToLowerInvariant())\$(Version)</PackageCacheFolder>
+			<PackageCacheFolder Condition=" '$(OS)' != 'Windows_NT' ">$(_PackageRoot)$(AssemblyName.ToLowerInvariant())/$(Version)</PackageCacheFolder>
 		</PropertyGroup>
 		<Message Importance="high" Text="Attempting to delete package $(AssemblyName) version $(Version) from cache folder $(PackageCacheFolder)" />
 		<!-- Windows-specific delete command -->
