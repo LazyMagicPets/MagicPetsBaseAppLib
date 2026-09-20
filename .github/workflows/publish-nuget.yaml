@@ -37,7 +37,11 @@ jobs:
         <configuration>
           <packageSources>
             <clear />
-            <add key="github" value="https://nuget.pkg.github.com/Banquet-Consulting/index.json" />
+            <!-- This repo's OWN org. It previously named an unrelated organization left over
+                 from an earlier home: secrets.GITHUB_TOKEN is scoped to the repository running
+                 the job, so it can neither read private packages from nor push to a foreign
+                 org, and the push step below would have been refused 403. -->
+            <add key="github" value="https://nuget.pkg.github.com/LazyMagicPets/index.json" />
             <add key="LazyMagic" value="https://nuget.pkg.github.com/LazyMagicOrg/index.json" />
             <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
           </packageSources>
@@ -67,5 +71,5 @@ jobs:
 
     - name: Publish
       run: |
-        dotnet nuget push ../Packages/*.nupkg --source https://nuget.pkg.github.com/Banquet-Consulting/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
-        dotnet nuget push ../Packages/*.snupkg --source https://nuget.pkg.github.com/Banquet-Consulting/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
+        dotnet nuget push ../Packages/*.nupkg --source https://nuget.pkg.github.com/LazyMagicPets/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
+        dotnet nuget push ../Packages/*.snupkg --source https://nuget.pkg.github.com/LazyMagicPets/index.json --api-key ${{ secrets.GITHUB_TOKEN }}

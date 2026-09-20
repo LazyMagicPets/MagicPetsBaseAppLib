@@ -126,11 +126,11 @@ Services implementing ITransient, ISingleton, or IScoped are auto-registered by 
 ### GitHub Actions
 - Triggered on push to main branch
 - Publishes NuGet packages to GitHub Packages registry
-- Configured for both Banquet-Consulting and LazyMagicOrg package sources
+- Publishes to this org's own feed (LazyMagicPets); reads LazyMagic.* from LazyMagicOrg
 
 ### Package Sources
 ```xml
-<add key="github" value="https://nuget.pkg.github.com/Banquet-Consulting/index.json" />
+<add key="github" value="https://nuget.pkg.github.com/LazyMagicPets/index.json" />
 <add key="LazyMagic" value="https://nuget.pkg.github.com/LazyMagicOrg/index.json" />
 <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
 ```
