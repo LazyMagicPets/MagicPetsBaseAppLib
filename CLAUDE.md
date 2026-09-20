@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -20,8 +20,6 @@ BaseAppLib is a Blazor component library that provides shared UI components and 
 - **ViewModels**: Application-specific ViewModels that reference BaseApp.ViewModels
 - **WASMApp**: Blazor WebAssembly application for web deployment
 - **MAUIApp**: .NET MAUI application for mobile and desktop platforms
-- **LzAppLoading**: Loading screen component (packaged library)
-- **LzAppConsole**: SVG viewer component for console output (packaged library)
 - **Blazorise.Icons.FontAwesome**: Custom FontAwesome icon provider (v6 webfonts)
 
 ### Project Relationships

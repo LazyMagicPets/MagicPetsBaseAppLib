@@ -1,9 +1,8 @@
-# BaseAppLib 
+﻿# BaseAppLib 
 This solution generates the following packages for use throughout the EventIt family of applications:
 
 - BaseApp.BlazorUI - contributes to the namespace BlazorUI
 - BaseApp.ViewModels - contributes to the namespace ViewModels
-- LzAppLoading - contributes to the namespace LzAppLoading
 
 To facilitate the development and integrtion testing of these libraries, we have the following projects:
 - BlazorUI - contributes to the namespace BlazorUI but is not provided as a package. Is used only in the WASMApp project.
@@ -21,9 +20,6 @@ This package contains those components used by all of the EventIt family of appl
 
 ## BaseApp.ViewModels
 This package contains those view models used by all of the EventIt family of applications.
-
-## LzAppLoading
-This is an example of packaging a single component. This is useful when you use the component in multiple applications but not all of the applications in the EventIt family.
 
 ## Notes
 When creting a new EventIt application, you can start by copying the WASMApp, ViewModel and BlazorUI projects.
