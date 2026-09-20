@@ -1,89 +1,271 @@
 <Project>
-	<!-- 
-	We use a very simple strategy for local development packages. 
-	We use Nuget.Config files to make the $(PackageRepoFolder) a package registry.
-	Each time we rebuild a solution, we clean out any old pacakges and generate 
-	new packages. We suffix the package with the build timestamp so a "newer" 
-	version is made available to the restore process. This ensures that the 
-	restore process picks up the newer package when you compile a project referencing the package. 
-	 -->
+	<!--
+	Local development packages: Nuget.Config makes $(PackageRepoFolder) - the shared repos\Packages
+	feed - a package source, each build republishes into it, and the eviction target below stops a
+	consumer's restore serving a stale copy of a version just rebuilt.
+
+	Imported by exactly the two projects that pack, BaseApp.BlazorUI and BaseApp.ViewModels, which is
+	why the version tool is wired HERE rather than in Solution.Build.props: that file is imported by
+	five projects, the other three of which publish nothing.
+
+	The timestamp-suffix scheme the old header described is gone, and so is the ConfigurePackageVersion
+	target that served it. It set PackageVersion = Version at BeforeTargets="GenerateNuspec", which the
+	SDK already does at evaluation (NuGet.Build.Tasks.Pack.targets defaults PackageVersion to Version),
+	and it did so AFTER the eviction target had read PackageVersion - so under a tool that sets only
+	Version the two disagreed, evicting one version while packing another. Its remaining Message tasks
+	printed $(PkgSuffix) and $(UseTimestampSuffix), which nothing sets: Solution.Build.props derives
+	PkgSuffix from a System.Build.props that does not exist in this workspace.
+	-->
 	<PropertyGroup>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 	</PropertyGroup>
 
-	<!-- Configure package version after external properties are loaded -->
-	<Target Name="ConfigurePackageVersion" BeforeTargets="GenerateNuspec">
-		<PropertyGroup>
-			<PackageVersion>$(Version)</PackageVersion>
-		</PropertyGroup>
-		<Message Importance="High" Text="[MakePackage] PkgSuffix=$(PkgSuffix)" />
-		<Message Importance="High" Text="[MakePackage] PackageVersion=$(PackageVersion)" />
-		<Message Importance="High" Text="[MakePackage] RestorePackagesWithLockFile=$(RestorePackagesWithLockFile)" />
-		<Message Importance="High" Text="[MakePackage] RestoreLockedMode=$(RestoreLockedMode)" />
+	<!--
+	  DERIVED VERSIONING. Replaces the <Version>1.0.1</Version> literal Solution.Build.props used to
+	  carry; the version now comes from version.json plus the number of commits since that file last
+	  changed.
+
+	  versionHeightOffset is 1 because the published version is 1.0.1: height 1 alone would recompute
+	  1.0.1 and collide with what is already in the feed, so the first derived build lands at 1.0.2.
+	  versionHeightOffsetAppliesTo retires the offset at the next version bump - without it a later move
+	  to 1.1 would yield 1.1.1 rather than 1.1.0.
+
+	  publicReleaseRefSpec names BOTH main and dev. Unlike repos/Service, which publishes nothing to a
+	  registry and so needs only dev, this repo is pushed to GitHub Packages by
+	  .github/workflows/publish-nuget.yaml on main while day-to-day work happens on dev. A branch left
+	  out of that list still builds, but its version carries a -g<commithash> discriminator and is
+	  therefore a PRERELEASE - which would quietly turn every locally built package into one, and every
+	  consumer pin into a prerelease pin.
+
+	  GitVersionBaseDirectory pins the height to the repo root so both projects compute ONE version. Not
+	  per-project pathFilters: pack asks each referenced project for its own PackageVersion, so a commit
+	  touching BaseApp.ViewModels alone would move the dependency recorded in BaseApp.BlazorUI's nuspec
+	  while leaving BaseApp.BlazorUI's own version alone, and one version would then name two different
+	  packages.
+	-->
+	<PropertyGroup>
+		<GitVersionBaseDirectory>$(MSBuildThisFileDirectory)</GitVersionBaseDirectory>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Nerdbank.GitVersioning" PrivateAssets="all" />
+	</ItemGroup>
+
+	<!--
+	  A SHALLOW clone is loud - NBGV throws MSB4018. NO git repository at all is not: a tree with
+	  version.json and no .git builds successfully, with no warning, at height 0 - a prerelease that
+	  sorts BELOW the released version. Refuse it rather than ship it.
+
+	  The shallow case is why publish-nuget.yaml now pins fetch-depth: 0. actions/checkout defaults to
+	  depth 1, so without that change the first CI build after this file landed would have failed.
+	-->
+	<Target Name="RefuseAVersionWithNoGitHistory"
+	        BeforeTargets="GetBuildVersion;Build"
+	        Condition="!Exists('$(GitVersionBaseDirectory).git')">
+		<Error Text="No git repository at $(GitVersionBaseDirectory), so the version cannot be derived. Nerdbank.GitVersioning does not fail here - it would quietly produce a height-0 prerelease that sorts BELOW the released version, and every package this build produced would carry it. Build from a full clone." />
 	</Target>
 
 	<!-- Create the Packages folder if it doesn't exist -->
 	<Target Name="CreateDirectories" BeforeTargets="Build">
 		<MakeDir Directories="$(PackageRepoFolder)"/>
-		<Message Importance="High" Text="[MakePackage] UseTimestampSuffix=$(UseTimestampSuffix)" />
-	</Target>
-
-	<!-- Clean Existing Package Target -->
-	<Target Name="CleanExistingPackages" BeforeTargets="Pack">
-		<Message Importance="High" Text="[MakePackage] Cleaning all existing packages for $(AssemblyName)" />
-		<ItemGroup>
-			<ExistingPackages Include="$(PackageRepoFolder)\$(AssemblyName).*.nupkg" />
-			<ExistingSymbolPackages Include="$(PackageRepoFolder)\$(AssemblyName).*.snupkg" />
-		</ItemGroup>
-		<Delete Files="@(ExistingPackages)" />
-		<Delete Files="@(ExistingSymbolPackages)" />
 	</Target>
 
 	<!-- Copy Package Target -->
 	<Target Name="CopyPackage" AfterTargets="Pack">
-		<Message Importance="high" Text="Copying $(AssemblyName).$(PackageVersion).nupkg to Packages folder" />
-		<Copy SourceFiles=".\bin\$(Configuration)\$(AssemblyName).$(PackageVersion).nupkg"
-			  DestinationFiles="$(PackageRepoFolder)\$(AssemblyName).$(PackageVersion).nupkg" />
-		<Copy Condition="Exists('.\bin\$(Configuration)\$(AssemblyName).$(PackageVersion).snupkg')"
-			  SourceFiles=".\bin\$(Configuration)\$(AssemblyName).$(PackageVersion).snupkg"
-			  DestinationFiles="$(PackageRepoFolder)\$(AssemblyName).$(PackageVersion).snupkg" />
+		<PropertyGroup>
+			<!-- Pack names its output <PackageId>.<normalized PackageVersion>, which is NOT
+			     $(AssemblyName).$(Version): PackageId need not equal AssemblyName, build metadata
+			     (+g1a2b3c) is dropped from the file name though not from $(Version), a fourth part of .0
+			     is dropped, and a two-part version is padded to three. Each of those made the old
+			     hardcoded Copy fail with MSB3030, leaving the feed holding the PREVIOUS version and
+			     never receiving the one just built. The rules are applied HERE, in a target that runs
+			     after Pack, because that is when a version tool has had its say.
+
+			     This reconstructs pack's name rather than reading it, so it models NuGet's normalization
+			     and can be incomplete - leading zeros (1.0.010 -> 1.0.10) are NOT modelled. That is why
+			     a miss is an Error and not a warning: nothing in this build gates on warnings, so a
+			     silent miss would leave every consumer restoring stale bytes.
+
+			     Why not @(NuGetPackOutput), which looks authoritative: it is computed by
+			     _GetOutputItemsFromPack from $(PackageId)/$(PackageVersion) and its only
+			     DependsOnTargets is _GetAbsoluteOutputPathsForPack, so it is a PREDICTION rather than a
+			     record of what pack wrote, and whether it is right depends on which hook the version
+			     tool uses. Reconstructing here does not depend on that choice, and unlike the item it is
+			     checked against the disk.
+
+			     $(PackageOutputPath) rather than a hardcoded bin\$(Configuration)\, so `dotnet pack -o`
+			     no longer breaks the copy. -->
+			<_PkgId>$(PackageId)</_PkgId>
+			<_PkgId Condition=" '$(_PkgId)' == '' ">$(AssemblyName)</_PkgId>
+			<_PkgVersion>$(PackageVersion)</_PkgVersion>
+			<_PkgVersion Condition=" '$(_PkgVersion)' == '' ">$(Version)</_PkgVersion>
+			<_PkgVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_PkgVersion)', '[+].*$', ''))</_PkgVersion>
+			<_PkgVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_PkgVersion)', '^([0-9]+[.][0-9]+)(?=$|[-])', '$1.0'))</_PkgVersion>
+			<_PkgVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_PkgVersion)', '^([0-9]+[.][0-9]+[.][0-9]+)[.]0(?=$|-)', '$1'))</_PkgVersion>
+			<_PkgDir>$(PackageOutputPath)</_PkgDir>
+			<_PkgDir Condition=" '$(_PkgDir)' == '' ">$(BaseOutputPath)$(Configuration)\</_PkgDir>
+			<_PkgDir>$([MSBuild]::EnsureTrailingSlash('$(_PkgDir)'))</_PkgDir>
+		</PropertyGroup>
+		<ItemGroup>
+			<_ProducedPackages Include="$(_PkgDir)$(_PkgId).$(_PkgVersion).nupkg" Condition="Exists('$(_PkgDir)$(_PkgId).$(_PkgVersion).nupkg')" />
+			<_ProducedPackages Include="$(_PkgDir)$(_PkgId).$(_PkgVersion).snupkg" Condition="Exists('$(_PkgDir)$(_PkgId).$(_PkgVersion).snupkg')" />
+		</ItemGroup>
+		<Error Condition="'@(_ProducedPackages)' == '' AND '$(IsPackable)' != 'false'" Text="Pack produced no $(_PkgId).$(_PkgVersion).nupkg in $(_PkgDir), so nothing was published to $(PackageRepoFolder). The name above is this target's reconstruction of pack's: PackageId, then PackageVersion with build metadata stripped, a two-part version padded to three, and a fourth part of .0 dropped. NuGet normalizes leading zeros too, which this does not model - if that is what differs, look at the file pack actually wrote in $(_PkgDir)." />
+		<Message Condition="'@(_ProducedPackages)' != ''" Importance="high" Text="Copying @(_ProducedPackages->'%(Filename)%(Extension)', ', ') to $(PackageRepoFolder)" />
+		<MakeDir Condition="'@(_ProducedPackages)' != ''" Directories="$(PackageRepoFolder)" />
+		<Copy Condition="'@(_ProducedPackages)' != ''" SourceFiles="@(_ProducedPackages)" DestinationFolder="$(PackageRepoFolder)" />
 	</Target>
 
-	<!-- Delete Package from local cache. This is necessary to force NuGet to pick up the latest local version. -->
-	<Target Name="DeletePackage" AfterTargets="Build">
-		<MSBuild Projects="$(MSBuildProjectFile)" Targets="DeleteSpecificPackage" Properties="Configuration=$(Configuration)" />
+	<!-- Once the new package is in the feed, remove this id's SUPERSEDED packages from BOTH the feed and
+	     the build output directory, so each holds one version per id. It runs after CopyPackage on
+	     purpose: if the copy fails, the previous version stays in the feed instead of leaving the id
+	     with nothing. The files just produced are excluded in both places, so a same-version rebuild -
+	     the ordinary edit-and-build loop - deletes nothing, and this can never remove what the build is
+	     about to publish. The target does not run at all when pack produced nothing, so a feed can never
+	     be emptied for an id this build did not replace.
+
+	     THIS IS NEW WORK, not a port of the old target. The previous CleanExistingPackages ran at
+	     BeforeTargets="Pack" over a bare "$(AssemblyName).*.nupkg" glob: under a FIXED version that
+	     merely deleted the file about to be rewritten, but under a derived version every commit produces
+	     a new file name, and nothing would otherwise stop either directory growing without bound.
+
+	     ANCHORED ON THE VERSION, deliberately. That bare glob also matches every package whose id merely
+	     EXTENDS this one - "BaseApp.ViewModels.*" would sweep a future BaseApp.ViewModels.Extras - so
+	     the glob only narrows the candidates and a regex then requires "<id>." followed by a digit-led
+	     version. The regexes use character classes and never a backslash: MSBuild on Linux and macOS
+	     rewrites literal backslashes in property values to slashes, and CI here runs ubuntu-latest. -->
+	<Target Name="CleanExistingPackages" AfterTargets="CopyPackage" Condition="'@(_ProducedPackages)' != ''">
+		<PropertyGroup>
+			<_CleanId>$(PackageId)</_CleanId>
+			<_CleanId Condition=" '$(_CleanId)' == '' ">$(AssemblyName)</_CleanId>
+			<_OwnPackagePattern>(?i)^$([System.Text.RegularExpressions.Regex]::Escape('$(_CleanId)'))[.][0-9]+([.][0-9]+){1,3}(-[0-9a-z][0-9a-z.-]*)?([+][0-9a-z][0-9a-z.-]*)?[.]s?nupkg$</_OwnPackagePattern>
+		</PropertyGroup>
+		<ItemGroup>
+			<_FeedCandidates Include="$(PackageRepoFolder)\$(_CleanId).*.nupkg;$(PackageRepoFolder)\$(_CleanId).*.snupkg;$(_PkgDir)$(_CleanId).*.nupkg;$(_PkgDir)$(_CleanId).*.snupkg"
+			                 Exclude="@(_ProducedPackages);@(_ProducedPackages->'$(PackageRepoFolder)\%(Filename)%(Extension)')" />
+			<_OwnPackages Include="@(_FeedCandidates)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_FeedCandidates.Filename)%(_FeedCandidates.Extension)', '$(_OwnPackagePattern)'))" />
+		</ItemGroup>
+		<Message Condition="'@(_OwnPackages)' != ''" Importance="high" Text="Removing superseded $(_CleanId) packages: @(_OwnPackages->'%(Filename)%(Extension)', ', ')" />
+		<!-- A superseded file another process still has open is not worth failing the build over; it is
+		     swept on the next build. -->
+		<Delete Files="@(_OwnPackages)" TreatErrorsAsWarnings="true" Retries="2" RetryDelayMilliseconds="250" />
 	</Target>
 
+	<!-- Evict this project's package from the NuGet global-packages folder after every build, so the
+	     next restore in a consumer re-extracts it from the feed instead of serving the cached copy. A
+	     same-version repack is the ORDINARY case, not a legacy one: a derived version is a function of
+	     git state, and the edit-and-rebuild loop does not advance the commit, so it recomputes the same
+	     version and rewrites the same package with different bytes. Without eviction a consumer keeps
+	     building against the stale bytes.
+
+	     DeleteSpecificPackage now runs in THIS project instance (DependsOnTargets), never through the
+	     child <MSBuild> call it used to use. That child call re-evaluated the project from scratch,
+	     where $(Version) was the STATIC value: a version tool sets the version inside a target, which a
+	     child evaluation never runs, so with this change in place it would have evicted <id>/1.0.0 - the
+	     SDK default, now that Solution.Build.props carries no literal - while never touching the version
+	     actually built.
+
+	     SKIPPED IN THE CROSS-TARGETING OUTER BUILD. A project with <TargetFrameworks> (plural) builds in
+	     two passes, and the outer pass runs none of the version tool's targets, so there $(Version) is
+	     whatever static evaluation left - the SDK default. Neither project here is cross-targeting today
+	     (Solution.Build.props sets a single <TargetFramework>), so this guard is insurance against one
+	     becoming so later. IsCrossTargetingBuild is set, with this exact condition, by both
+	     Microsoft.NET.Sdk's Sdk.targets and MSBuild's Microsoft.Managed.Before.targets; a target
+	     Condition is evaluated when the target RUNS, so it sees that value even though this file is
+	     imported before the SDK's targets. -->
+	<Target Name="DeletePackage" AfterTargets="Build" DependsOnTargets="DeleteSpecificPackage"
+	        Condition="'$(IsCrossTargetingBuild)' != 'true'" />
 	<Target Name="DeleteSpecificPackage">
 		<PropertyGroup>
-			<!-- Evict from the global-packages folder the restore ACTUALLY used. $(NuGetPackageRoot) comes from
-			     the restore-generated nuget.g.props and follows a per-workspace globalPackagesFolder set in the
-			     workspace NuGet.Config. NuGet writes a RELOCATED root WITHOUT a trailing separator (the default
-			     ~\.nuget\packages\ has one), so the separator must be ensured or the path collapses to
-			     "...\.nuget-packagesBaseApp.ViewModels\1.0.1" and eviction silently no-ops (seen 2026-09-02).
-			     NuGet lowercases package ids on disk. -->
+			<!-- Evict from the global-packages folder the restore ACTUALLY used, not a hardcoded
+			     ~/.nuget/packages. $(NuGetPackageRoot) comes from the restore-generated nuget.g.props
+			     and follows the per-workspace globalPackagesFolder set in the workspace Nuget.Config.
+			     NuGet writes a RELOCATED root WITHOUT a trailing separator (the default has one), so it
+			     is ensured, or the path collapses to "...\.nuget-packagesbaseapp.viewmodels\1.0.1" and
+			     eviction silently no-ops (seen 2026-09-02). Falls back to the NuGet default only when no
+			     restore has run. -->
 			<_PackageRoot>$(NuGetPackageRoot)</_PackageRoot>
 			<_PackageRoot Condition=" '$(_PackageRoot)' == '' AND '$(OS)' == 'Windows_NT' ">$(UserProfile)\.nuget\packages\</_PackageRoot>
 			<_PackageRoot Condition=" '$(_PackageRoot)' == '' AND '$(OS)' != 'Windows_NT' ">$(Home)/.nuget/packages/</_PackageRoot>
 			<_PackageRoot>$([MSBuild]::EnsureTrailingSlash('$(_PackageRoot)'))</_PackageRoot>
-			<PackageCacheFolder Condition=" '$(OS)' == 'Windows_NT' ">$(_PackageRoot)$(AssemblyName.ToLowerInvariant())\$(Version)</PackageCacheFolder>
-			<PackageCacheFolder Condition=" '$(OS)' != 'Windows_NT' ">$(_PackageRoot)$(AssemblyName.ToLowerInvariant())/$(Version)</PackageCacheFolder>
+			<!-- The id and version the package was ACTUALLY built with, read here after the version tool
+			     has run: PackageVersion is what pack stamps, Version is its default. NuGet names the
+			     cache folder by the lower-cased id and the NORMALIZED, lower-cased version - build
+			     metadata (+g1a2b3c) is not part of it and a fourth part of 0 is dropped - so the same
+			     normalization is applied here. -->
+			<_EvictId>$(PackageId)</_EvictId>
+			<_EvictId Condition=" '$(_EvictId)' == '' ">$(AssemblyName)</_EvictId>
+			<_EvictVersion>$(PackageVersion)</_EvictVersion>
+			<_EvictVersion Condition=" '$(_EvictVersion)' == '' ">$(Version)</_EvictVersion>
+			<_EvictVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_EvictVersion)', '[+].*$', ''))</_EvictVersion>
+			<_EvictVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_EvictVersion)', '^([0-9]+[.][0-9]+)(?=$|[-])', '$1.0'))</_EvictVersion>
+			<_EvictVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(_EvictVersion)', '^([0-9]+[.][0-9]+[.][0-9]+)[.]0(?=$|-)', '$1'))</_EvictVersion>
+			<_EvictVersion>$(_EvictVersion.ToLowerInvariant())</_EvictVersion>
+			<PackageCacheFolder Condition=" '$(OS)' == 'Windows_NT' ">$(_PackageRoot)$(_EvictId.ToLowerInvariant())\$(_EvictVersion)</PackageCacheFolder>
+			<PackageCacheFolder Condition=" '$(OS)' != 'Windows_NT' ">$(_PackageRoot)$(_EvictId.ToLowerInvariant())/$(_EvictVersion)</PackageCacheFolder>
 		</PropertyGroup>
-		<Message Importance="high" Text="Attempting to delete package $(AssemblyName) version $(Version) from cache folder $(PackageCacheFolder)" />
-		<!-- Windows-specific delete command -->
-		<Exec Condition=" '$(OS)' == 'Windows_NT' AND Exists('$(PackageCacheFolder)')"
+		<!-- Three honest outcomes, decided by STATE rather than by exit code. On Windows `rmdir /s /q`
+		     exits 0 when a file inside is in use and it deleted only what it could, so an exit-code test
+		     reports that as success. Exists() in a task condition is evaluated when the task runs, after
+		     the Exec, and sees the post-deletion state. (The target this replaces printed "Failed to
+		     delete package. Error code: " on the NOTHING-TO-EVICT path: the Exec never ran, the exit
+		     code stayed empty, and '' != '0' is true. That noise is what the /build skill documents as
+		     safe to ignore; it is now gone rather than documented.) -->
+		<!-- A destructive delete NEVER runs on a version we could not determine. With $(_EvictVersion)
+		     empty the path collapses to the id root and rmdir would take EVERY cached version of the
+		     package. Nothing upstream should ever produce an empty version - the SDK defaults it, and
+		     the two fallbacks above cover an unset PackageId - so this is a bug detector, not a fallback
+		     path, and it warns rather than passing silently. -->
+		<Warning Condition=" '$(_EvictVersion)' == '' " Text="No version could be determined for $(_EvictId); skipping the package-cache eviction rather than deleting every cached version of it. The build is producing a package whose version this target cannot see - check version.json and any &lt;Version&gt; override." />
+		<Message Condition=" '$(_EvictVersion)' != '' AND !Exists('$(PackageCacheFolder)')" Importance="high" Text="No cached $(_EvictId) $(_EvictVersion) under $(_PackageRoot) - nothing to evict." />
+		<Exec Condition=" '$(OS)' == 'Windows_NT' AND '$(_EvictVersion)' != '' AND Exists('$(PackageCacheFolder)')"
 			  Command="cmd.exe /c &quot;if exist &quot;$(PackageCacheFolder)&quot; rmdir /s /q &quot;$(PackageCacheFolder)&quot;&quot;"
 			  ContinueOnError="true">
-			<Output TaskParameter="ExitCode" PropertyName="ErrorCode"/>
+			<Output TaskParameter="ExitCode" PropertyName="_EvictExitCode"/>
 		</Exec>
-		<!-- Unix/Linux/Mac-specific delete command -->
-		<Exec Condition=" '$(OS)' != 'Windows_NT' AND Exists('$(PackageCacheFolder)')"
+		<Exec Condition=" '$(OS)' != 'Windows_NT' AND '$(_EvictVersion)' != '' AND Exists('$(PackageCacheFolder)')"
 			  Command="rm -rf &quot;$(PackageCacheFolder)&quot;"
 			  ContinueOnError="true">
-			<Output TaskParameter="ExitCode" PropertyName="ErrorCode"/>
+			<Output TaskParameter="ExitCode" PropertyName="_EvictExitCode"/>
 		</Exec>
-		<Message Condition="'$(ErrorCode)' != '0'" Importance="high" Text="Failed to delete package. Error code: $(ErrorCode)" />
-		<Message Condition="'$(ErrorCode)' == '0'" Importance="high" Text="Successfully deleted package from $(PackageCacheFolder)" />
+		<Message Condition="'$(_EvictExitCode)' != '' AND !Exists('$(PackageCacheFolder)')" Importance="high" Text="Evicted $(PackageCacheFolder); the next restore re-extracts $(_EvictId) $(_EvictVersion) from the feed." />
+		<Warning Condition="'$(_EvictExitCode)' != '' AND Exists('$(PackageCacheFolder)')" Text="Could not evict $(PackageCacheFolder) (exit $(_EvictExitCode); a file inside is probably in use) - a consumer may restore a STALE $(_EvictId) $(_EvictVersion). Close whatever holds it and rebuild." />
 	</Target>
-	
+
+	<!-- =====================================================================================
+	     SIBLING DEPENDENCIES PACK AS EXACT RANGES, NOT MINIMUMS.
+
+	     BaseApp.BlazorUI depends on BaseApp.ViewModels through a ProjectReference. Pack renders such a
+	     dependency from the referenced project's $(PackageVersion) as a BARE version, which NuGet reads
+	     as "[x, )". These two are built from one commit and versioned together, so a consumer pinning
+	     BaseApp.BlazorUI must not silently resolve a later BaseApp.ViewModels - and under derived
+	     versioning "later" now arrives on every commit rather than never.
+
+	     CPM CANNOT REACH IT - Directory.Packages.props governs PackageReference, and a ProjectReference
+	     never passes through it. Measured on SDK 10.0.301: Version, VersionOverride and ExactVersion
+	     metadata on the ProjectReference item are silently IGNORED, and giving the referenced project a
+	     bracketed $(PackageVersion) fails the pack outright, because a package version cannot be a range.
+
+	     WHERE THIS HOOKS. GenerateNuspec depends on _GetProjectReferenceVersions, which collects
+	     @(_ProjectReferencesWithVersions) with ProjectVersion metadata before PackTask turns those items
+	     into the nuspec <dependency> entries. Editing the metadata in between is an item transform at a
+	     real seam, not a rewrite of generated XML.
+
+	     THE RISK, AND THAT IT IS UNGUARDED HERE. @(_ProjectReferencesWithVersions) is SDK-INTERNAL - the
+	     underscore says so - so a future SDK could rename it and this target would silently stop
+	     applying. That is a FAIL-OPEN: the build still succeeds and the package still publishes, just
+	     with an open-ended dependency. Scutara's equivalent is backed by a publish workflow that refuses
+	     any package whose sibling dependency is not an exact range; this repo's
+	     .github/workflows/publish-nuget.yaml has no such check, so nothing here would catch it. Until it
+	     does, verify by hand after an SDK upgrade: unzip a BaseApp.BlazorUI .nupkg and confirm the
+	     BaseApp.ViewModels <dependency> version reads "[x]" and not "x".
+	     ===================================================================================== -->
+	<Target Name="BracketSiblingProjectReferences" AfterTargets="_GetProjectReferenceVersions">
+		<ItemGroup>
+			<_ProjectReferencesWithVersions Update="@(_ProjectReferencesWithVersions)"
+					Condition="!$([System.String]::Copy('%(ProjectVersion)').StartsWith('['))">
+				<ProjectVersion>[%(ProjectVersion)]</ProjectVersion>
+			</_ProjectReferencesWithVersions>
+		</ItemGroup>
+	</Target>
+
 </Project>

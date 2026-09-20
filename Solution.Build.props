@@ -38,7 +38,14 @@
 		<RepositoryUrl>https://github.com/LazyMagicPets/MagicPetsBaseAppLib.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<Authors>Tim May</Authors>
-		<Version>1.0.1</Version>
+		<!-- NO <Version> HERE. The two projects that pack derive it from version.json plus commit
+		     height; the tool is wired in MakePackage.targets, which is imported by exactly those
+		     two, rather than in this file, which five projects import. A literal left here would be
+		     SILENTLY OVERRIDDEN for the packers - Nerdbank.GitVersioning sets the version inside a
+		     target, long after this evaluates - while staying live for BlazorUI, ViewModels and
+		     WASMApp, so one line would mean two different things depending on which project read
+		     it. Those three are development and test projects that are never published; they now
+		     take the SDK default 1.0.0, which nothing consumes. -->
 	</PropertyGroup>
 
 	<PropertyGroup>

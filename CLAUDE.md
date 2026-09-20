@@ -29,9 +29,13 @@ BaseAppLib is a Blazor component library that provides shared UI components and 
 - ViewModels → references → BaseApp.ViewModels
 
 ### Important Files
-- `Solution.Build.props`: Version management (currently 1.2.3)
+- `Solution.Build.props`: shared build settings. Carries NO `<Version>` - see `version.json`
 - `Directory.Packages.props`: Central package version management
-- `MakePackage.targets`: Automated NuGet package creation for BaseApp.* projects
+- `MakePackage.targets`: NuGet package creation, feed publishing and cache eviction for the two
+  BaseApp.* projects; also where Nerdbank.GitVersioning is wired
+- `version.json`: the derived version - `1.0` plus commit height, so the first derived build is
+  1.0.2. Public-release branches are `main` and `dev`; on any other branch the version carries a
+  `-g<hash>` suffix and is therefore a prerelease
 - `GetSystemConfig.props`: Reads environment from systemconfig.yaml
 - `Import-LzAws.ps1`: Finds and loads LzAws PowerShell module
 
@@ -60,8 +64,8 @@ dotnet build -t:Run -f net9.0-windows10.0.19041.0  # Windows
 
 # Package Generation (automatic on build for BaseApp.* projects)
 # Packages output to ../Packages/ directory
-# Package format: {AssemblyName}.{Version}-dev-{timestamp}.nupkg
-# Local NuGet cache is cleared automatically for each package
+# Package format: {PackageId}.{Version}.nupkg, e.g. BaseApp.BlazorUI.1.0.2.nupkg
+# Local NuGet cache is evicted automatically for each package
 
 # Clean build artifacts
 # Use the DeleteObjAndBin.ps1 script from parent directory if available
@@ -95,10 +99,10 @@ No formal test projects are currently included in this solution. Testing is perf
 ## Development Workflow
 
 ### Local Package Development
-- Packages are automatically built with timestamp suffix (e.g., 1.2.3-dev-20250102123456)
-- Output to `../Packages/` directory
-- Local NuGet cache is cleared automatically to ensure latest version
-- MakePackage.targets handles package creation for BaseApp.* projects
+- Versions derive from `version.json` plus commit height; there is no timestamp suffix
+- Output to `../Packages/` directory, which keeps one version per package id
+- The global-packages cache is evicted automatically, so a same-version rebuild is picked up
+- MakePackage.targets handles package creation for the two BaseApp.* projects
 
 ### JavaScript Integration
 - Browser fingerprinting service for client identification using ClientJS
@@ -163,7 +167,8 @@ Based on git status, recent work includes:
 - Part of larger MagicPets/BCProjects ecosystem (see parent CLAUDE.md)
 - Uses LazyMagic code generation - don't edit .g.* files
 - Environment configuration read from ../systemconfig.yaml
-- Package versions must be kept in sync between BaseApp.* projects via Solution.Build.props
+- BaseApp.* versions stay in step automatically: one `version.json` and a repo-root
+  `GitVersionBaseDirectory` mean both projects compute the same height
 - When developing locally, ensure local API services are running before testing with "Local" launch profiles
 - MAUI apps require platform-specific SDKs to be installed
 - Current git branch: dev (main branch for PRs: main)

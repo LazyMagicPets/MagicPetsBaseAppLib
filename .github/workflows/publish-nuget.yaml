@@ -13,7 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # fetch-depth: 0 because the packages derive their version from commit height
+    # (version.json + Nerdbank.GitVersioning, wired in MakePackage.targets). actions/checkout
+    # defaults to a depth-1 SHALLOW clone, on which NBGV throws MSB4018 rather than guessing.
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
