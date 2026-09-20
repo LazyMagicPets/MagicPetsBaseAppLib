@@ -23,7 +23,12 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '9.x' # Update to your .NET version
+        # 10.x, not 9.x: every project here targets net10.0, which a 9 SDK cannot build. This
+        # line had never been exercised against the net10 conversion - the workflow only runs on
+        # main, and the work happens on dev - so nothing caught it. Unlike LazyMagic and lz, this
+        # repo ships no global.json, so there is no SDK pin for a floating version to collide
+        # with; add one and switch to global-json-file if that changes.
+        dotnet-version: '10.x'
 
     - name: Configure NuGet
       run: |
