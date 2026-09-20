@@ -13,8 +13,8 @@
 		<PackageVersion Include="MSTest.TestAdapter" Version="3.1.2" />
 		<PackageVersion Include="MSTest.TestFramework" Version="3.1.2" />
 		<PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-		<PackageVersion Include="ReactiveUI" Version="23.2.19" />
-		<PackageVersion Include="ReactiveUI.Blazor" Version="23.2.19" />
+		<PackageVersion Include="ReactiveUI" Version="23.2.28" />
+		<PackageVersion Include="ReactiveUI.Blazor" Version="23.2.28" />
 		<PackageVersion Include="ReactiveUI.SourceGenerators" Version="2.6.1" />
 	</ItemGroup>
 	<ItemGroup>
@@ -22,24 +22,64 @@
 		<PackageVersion Include="MudBlazor" Version="9.4.0" />
 		<PackageVersion Include="BlazorPro.BlazorSize" Version="9.0.0" />
 	</ItemGroup>
+	<!--
+		LOCAL LANE. Each first-party pin below reads a property whose DEFAULT is the version this
+		repo is committed against - the published lane, and what a fresh clone or CI restores with.
+		`lz packages mode local` writes the override imported underneath, redirecting those
+		properties at whatever the workspace feeds hold; deleting it returns to the published lane.
+
+		THE IMPORT MUST STAY BELOW THESE DEFAULTS. Moved above them the defaults win, restore still
+		succeeds, and the wrong version is used with no diagnostic anywhere.
+
+		See Platform/LzPackageLaneMigration.md for the rules and their failure modes.
+	-->
+	<PropertyGroup>
+		<PkgVer_LazyMagic_Blazor>3.0.17</PkgVer_LazyMagic_Blazor>
+		<PkgVer_LazyMagic_Client_FactoryGenerator>3.0.17</PkgVer_LazyMagic_Client_FactoryGenerator>
+		<PkgVer_LazyMagic_Client_ModelGenerator>3.0.17</PkgVer_LazyMagic_Client_ModelGenerator>
+		<PkgVer_LazyMagic_Client_ViewModels>3.0.17</PkgVer_LazyMagic_Client_ViewModels>
+		<PkgVer_LazyMagic_MudBlazor>3.0.17</PkgVer_LazyMagic_MudBlazor>
+		<PkgVer_LazyMagic_OIDC_Base>3.0.17</PkgVer_LazyMagic_OIDC_Base>
+		<PkgVer_LazyMagic_OIDC_MAUI>3.0.17</PkgVer_LazyMagic_OIDC_MAUI>
+		<PkgVer_LazyMagic_OIDC_WASM>3.0.17</PkgVer_LazyMagic_OIDC_WASM>
+		<PkgVer_LazyMagic_Shared>3.0.17</PkgVer_LazyMagic_Shared>
+		<PkgVer_AdminModuleClientInterface>1.0.0</PkgVer_AdminModuleClientInterface>
+		<PkgVer_AppApi>1.0.0</PkgVer_AppApi>
+		<PkgVer_ChatModuleClientInterface>1.0.0</PkgVer_ChatModuleClientInterface>
+		<PkgVer_ConsumerModuleClientInterface>1.0.0</PkgVer_ConsumerModuleClientInterface>
+		<PkgVer_PublicModuleClientInterface>1.0.0</PkgVer_PublicModuleClientInterface>
+		<PkgVer_StoreModuleClientInterface>1.0.0</PkgVer_StoreModuleClientInterface>
+	</PropertyGroup>
+	<Import Project="$(MSBuildThisFileDirectory)../../Packages.Local.props" Condition="Exists('$(MSBuildThisFileDirectory)../../Packages.Local.props')" />
 	<ItemGroup>
-		<!-- LazyMagic Package References -->
-		<PackageVersion Include="LazyMagic.Client.FactoryGenerator" Version="3.0.17"/>
-		<PackageVersion Include="LazyMagic.Client.ModelGenerator" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.MudBlazor" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.Client.ViewModels" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.OIDC.Base" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.OIDC.WASM" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.OIDC.MAUI" Version="3.0.17" />
-		<PackageVersion Include="LazyMagic.Shared" Version="3.0.17" />
+		<!-- LazyMagic Package References.
+		     BRACKETED because this repo PACKS: `Version="x"` is a minimum, read as "[x, )" when
+		     packing too, so unbracketed every BaseApp.* package would tell its consumers "any
+		     LazyMagic at or above this" with no upper bound, fixed forever once pushed. The
+		     brackets go around the property reference so `lz packages mode local` and `sync` keep
+		     writing plain versions. Legal under CPM: NU1011 forbids floating versions, not ranges. -->
+		<!-- LazyMagic.Blazor is referenced directly by MAUIApp, which had an inline Version="3.0.17"
+		     that bypassed central package management entirely and pinned it below what
+		     LazyMagic.MudBlazor now requires. Declared here so it follows the lane like every other
+		     first-party pin. (Scutara dropped the direct reference instead, taking it transitively
+		     through LazyMagic.MudBlazor; routing it is the smaller change.) -->
+		<PackageVersion Include="LazyMagic.Blazor" Version="[$(PkgVer_LazyMagic_Blazor)]" />
+		<PackageVersion Include="LazyMagic.Client.FactoryGenerator" Version="[$(PkgVer_LazyMagic_Client_FactoryGenerator)]"/>
+		<PackageVersion Include="LazyMagic.Client.ModelGenerator" Version="[$(PkgVer_LazyMagic_Client_ModelGenerator)]" />
+		<PackageVersion Include="LazyMagic.MudBlazor" Version="[$(PkgVer_LazyMagic_MudBlazor)]" />
+		<PackageVersion Include="LazyMagic.Client.ViewModels" Version="[$(PkgVer_LazyMagic_Client_ViewModels)]" />
+		<PackageVersion Include="LazyMagic.OIDC.Base" Version="[$(PkgVer_LazyMagic_OIDC_Base)]" />
+		<PackageVersion Include="LazyMagic.OIDC.WASM" Version="[$(PkgVer_LazyMagic_OIDC_WASM)]" />
+		<PackageVersion Include="LazyMagic.OIDC.MAUI" Version="[$(PkgVer_LazyMagic_OIDC_MAUI)]" />
+		<PackageVersion Include="LazyMagic.Shared" Version="[$(PkgVer_LazyMagic_Shared)]" />
 	</ItemGroup>
 	<!-- MagicPetsSvc API Package Reference -->
 	<ItemGroup>
-		<PackageVersion Include="PublicModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="ConsumerModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="StoreModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="AdminModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="ChatModuleClientInterface" Version="1.0.0" />
-		<PackageVersion Include="AppApi" Version="1.0.0" />
+		<PackageVersion Include="PublicModuleClientInterface" Version="[$(PkgVer_PublicModuleClientInterface)]" />
+		<PackageVersion Include="ConsumerModuleClientInterface" Version="[$(PkgVer_ConsumerModuleClientInterface)]" />
+		<PackageVersion Include="StoreModuleClientInterface" Version="[$(PkgVer_StoreModuleClientInterface)]" />
+		<PackageVersion Include="AdminModuleClientInterface" Version="[$(PkgVer_AdminModuleClientInterface)]" />
+		<PackageVersion Include="ChatModuleClientInterface" Version="[$(PkgVer_ChatModuleClientInterface)]" />
+		<PackageVersion Include="AppApi" Version="[$(PkgVer_AppApi)]" />
 	</ItemGroup>
 </Project>
